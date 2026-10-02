@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Combat demo · LittleEnvironment</title>
+    <link rel="stylesheet" href="../style.css">
+  </head>
+  <body>
+    <header><nav class="nav"><a class="brand" href="../index.html">LittleEnvironment</a><div class="nav-links"><a href="survival-demo.html">Survival</a><a href="../api/index.html">API</a></div></nav></header>
+    <main>
+      <p class="eyebrow">Interactive demo</p>
+      <h1>Combat receipts and active conditions</h1>
+      <p class="lede">Strike the target to inspect critical, mitigation, shield, and health stages. Inflict frostbite to watch drift-free status-effect ticks cause environmental damage.</p>
+      <div class="demo-layout">
+        <section class="panel">
+          <h2>Target state</h2>
+          <div class="metric"><span>Health</span><strong id="health">100.0</strong></div>
+          <div class="bar"><span id="health-bar"></span></div>
+          <div class="metric"><span>Armour</span><strong id="armour-value">40</strong></div>
+          <div class="metric"><span>Shield</span><strong id="shield-value">20.0</strong></div>
+          <div class="metric"><span>Effects</span><strong id="effect-value">None</strong></div>
+          <h3>Combat receipt</h3>
+          <pre class="log" id="receipt">No combat has occurred.</pre>
+        </section>
+        <aside class="panel controls">
+          <label>Raw damage <input id="damage" type="range" min="1" max="100" step="1" value="45"></label>
+          <label>Damage type <select id="type"><option value="physical">Physical</option><option value="fire">Fire</option><option value="frost">Frost</option><option value="true">True</option></select></label>
+          <label>Armour <input id="armour" type="range" min="0" max="200" step="5" value="40"></label>
+          <label>Starting shield <input id="shield" type="range" min="0" max="100" step="5" value="20"></label>
+          <button id="strike" type="button">Strike target</button>
+          <button id="frostbite" type="button">Apply frostbite</button>
+          <button id="reset" type="button">Reset target</button>
+        </aside>
+      </div>
+    </main>
+    <footer>Status effect modifiers and tick state are removed cleanly at expiration or dispel.</footer>
+    <script type="module">
+      import { Attribute, CombatResolver, ModifierType, StackPolicy, StatusEffectManager } from '../../release/littleenvironment.min.js';
+
+      const attackerAttributes = new Map([
+        ['critChance', new Attribute({ name: 'critChance', base: 0.3, min: 0, max: 1 })],
+        ['critDamage', new Attribute({ name: 'critDamage', base: 1.75, min: 1 })],
+      ]);
+      const attacker = { getAttribute: (name) => attackerAttributes.get(name) };
+      const damageInput = document.querySelector('#damage');
+      const typeInput = document.querySelector('#type');
+      const armourInput = document.querySelector('#armour');
+      const shieldInput = document.querySelector('#shield');
+      let target;
+      let effects;
+      let previous = performance.now();
+
+      function reset() {
+        const attributes = new Map([
+          ['health', new Attribute({ name: 'health', base: 100, min: 0, max: 100 })],
+          ['armour', new Attribute({ name: 'armour', base: Number(armourInput.value), min: 0 })],
+          ['res_fire', new Attribute({ name: 'res_fire', base: 0.15, min: -1, max: 0.85 })],
+          ['res_frost', new Attribute({ name: 'res_frost', base: 0.05, min: -1, max: 0.85 })],
+          ['speed', new Attribute({ name: 'speed', base: 100, min: 0 })],
+        ]);
+        target = { attributes, shields: [{ amount: Number(shieldInput.value) }], getAttribute(name) { return this.attributes.get(name); } };
+        effects = new StatusEffectManager(target);
+        document.querySelector('#receipt').textContent = 'Target reset.';
+      }
+
+      function receiptText(receipt) {
+        return `critical: ${receipt.isCrit}\nmitigation: ${(receipt.mitigation * 100).toFixed(1)}%\nabsorbed: ${receipt.absorbedDamage.toFixed(2)}\napplied: ${receipt.appliedDamage.toFixed(2)}\ndead: ${receipt.isDead}`;
+      }
+
+      document.querySelector('#strike').addEventListener('click', () => {
+        target.getAttribute('armour').setBase(Number(armourInput.value));
+        const type = typeInput.value;
+        const receipt = CombatResolver.resolveDamage(target, {
+          rawAmount: Number(damageInput.value),
+          type,
+          isTrueDamage: type === 'true',
+          attacker,
+        }, { random: Math.random });
+        document.querySelector('#receipt').textContent = receiptText(receipt);
+      });
+      document.querySelector('#frostbite').addEventListener('click', () => {
+        effects.apply({
+          id: 'frostbite',
+          tags: ['cold'],
+          duration: 8,
+          tickInterval: 1,
+          maxStacks: 3,
+          stackPolicy: StackPolicy.INTENSITY,
+          modifiers: [{ attribute: 'speed', type: ModifierType.PERCENT_ADDITIVE, value: -0.1 }],
+          onTick: (_target, stacks) => {
+            const receipt = CombatResolver.resolveDamage(target, { rawAmount: 3 * stacks, type: 'frost', canCrit: false });
+            document.querySelector('#receipt').textContent = `Frostbite tick ×${stacks}\n${receiptText(receipt)}`;
+          },
+        });
+      });
+      document.querySelector('#reset').addEventListener('click', reset);
+      armourInput.addEventListener('input', () => { if (target) target.getAttribute('armour').setBase(Number(armourInput.value)); });
+
+      function render(now) {
+        const frameTime = Number.isFinite(now) ? now : performance.now();
+        const delta = Math.min((frameTime - previous) / 1000, 0.08);
+        previous = frameTime;
+        effects.update(delta);
+        const health = target.getAttribute('health').base;
+        const shield = target.shields.reduce((sum, entry) => sum + entry.amount, 0);
+        document.querySelector('#health').textContent = health.toFixed(1);
+        document.querySelector('#health-bar').style.width = `${health}%`;
+        document.querySelector('#armour-value').textContent = target.getAttribute('armour').value.toFixed(0);
+        document.querySelector('#shield-value').textContent = shield.toFixed(1);
+        document.querySelector('#effect-value').textContent = [...effects.effects.values()].map((effect) => `${effect.id} ×${effect.stacks}`).join(', ') || 'None';
+        requestAnimationFrame(render);
+      }
+
+      reset();
+      requestAnimationFrame(render);
+    </script>
+  </body>
+</html>

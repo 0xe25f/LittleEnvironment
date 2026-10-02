@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Day and night demo · LittleEnvironment</title>
+    <link rel="stylesheet" href="../style.css">
+  </head>
+  <body>
+    <header><nav class="nav"><a class="brand" href="../index.html">LittleEnvironment</a><div class="nav-links"><a href="weather-demo.html">Weather</a><a href="../api/index.html">API</a></div></nav></header>
+    <main>
+      <p class="eyebrow">Interactive demo</p>
+      <h1>Continuous day and night</h1>
+      <p class="lede">Drag the clock or let time run. The sky uses a cyclic ambient palette, while the torch is an opt-in Canvas rendering of a headless light descriptor.</p>
+      <div class="demo-layout">
+        <canvas class="demo-canvas" id="scene" width="760" height="420" aria-label="Day and night visualisation"></canvas>
+        <aside class="panel controls">
+          <label>Time of day <input id="time" type="range" min="0" max="1" step="0.001" value="0.25"></label>
+          <label>Simulation speed <input id="speed" type="range" min="0" max="20" step="0.25" value="4"></label>
+          <button id="pause" type="button">Pause</button>
+          <div class="metric"><span>Clock</span><strong id="clock">06:00</strong></div>
+          <div class="metric"><span>Ambient intensity</span><strong id="ambient">0.00</strong></div>
+          <div class="metric"><span>Sun elevation</span><strong id="sun">0.00</strong></div>
+          <div class="metric"><span>Season</span><strong id="season">spring</strong></div>
+        </aside>
+      </div>
+    </main>
+    <footer>All simulation state is renderer-neutral until the final compositing pass.</footer>
+    <script type="module">
+      import { AmbientColorGradient, CelestialClock, LightingCompositor, LightSource } from '../../release/littleenvironment.min.js';
+
+      const canvas = document.querySelector('#scene');
+      const context = canvas.getContext('2d');
+      const timeInput = document.querySelector('#time');
+      const speedInput = document.querySelector('#speed');
+      const pauseButton = document.querySelector('#pause');
+      const clock = new CelestialClock({ dayDurationSeconds: 24, startNormalisedTime: 0.25 });
+      const compositor = new LightingCompositor({ ambientGradient: new AmbientColorGradient(undefined, 'hermite') });
+      compositor.addLight(new LightSource({ id: 'campfire', position: { x: 390, y: 335 }, radius: 108, intensity: 0.8, flickerAmount: 0.08 }));
+      const bounds = { x: 0, y: 0, width: canvas.width, height: canvas.height };
+      let previous = performance.now();
+      let elapsed = 0;
+      let paused = false;
+
+      timeInput.addEventListener('input', () => clock.setTime(Number(timeInput.value)));
+      pauseButton.addEventListener('click', () => {
+        paused = !paused;
+        pauseButton.textContent = paused ? 'Resume' : 'Pause';
+      });
+
+      function drawSky() {
+        const sun = clock.getSunPosition();
+        const sky = context.createLinearGradient(0, 0, 0, canvas.height);
+        sky.addColorStop(0, sun.elevation > 0 ? '#75c8f7' : '#08112c');
+        sky.addColorStop(1, sun.elevation > 0 ? '#dcecc8' : '#263253');
+        context.fillStyle = sky;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        const bodyX = canvas.width / 2 + sun.x * 255;
+        const bodyY = 230 - sun.elevation * 155;
+        context.beginPath();
+        context.arc(bodyX, bodyY, 31, 0, Math.PI * 2);
+        context.fillStyle = sun.elevation > -0.05 ? '#fff3a6' : '#dce7ff';
+        context.fill();
+        context.fillStyle = '#263d31';
+        context.fillRect(0, 330, canvas.width, 90);
+        context.fillStyle = '#17261d';
+        for (let x = 0; x < canvas.width; x += 52) {
+          context.beginPath();
+          context.moveTo(x, 330);
+          context.lineTo(x + 25, 255 + (x % 5) * 7);
+          context.lineTo(x + 50, 330);
+          context.fill();
+        }
+        context.fillStyle = '#5d3820';
+        context.fillRect(385, 324, 10, 35);
+        context.beginPath();
+        context.arc(390, 318, 13, 0, Math.PI * 2);
+        context.fillStyle = '#ff9b45';
+        context.fill();
+      }
+
+      function render(now) {
+        const frameTime = Number.isFinite(now) ? now : performance.now();
+        const delta = Math.min((frameTime - previous) / 1000, 0.1);
+        previous = frameTime;
+        if (!paused) {
+          elapsed += delta;
+          clock.update(delta * Number(speedInput.value));
+          timeInput.value = clock.time;
+        }
+        drawSky();
+        compositor.compositeCanvas(context, compositor.createFrame(clock.time, bounds, elapsed), bounds);
+        const time = clock.getClockTime();
+        document.querySelector('#clock').textContent = `${String(time.hour).padStart(2, '0')}:${String(time.minute).padStart(2, '0')}`;
+        document.querySelector('#ambient').textContent = clock.getAmbientIntensity().toFixed(2);
+        document.querySelector('#sun').textContent = clock.getSunPosition().elevation.toFixed(2);
+        document.querySelector('#season').textContent = clock.currentSeason;
+        requestAnimationFrame(render);
+      }
+
+      requestAnimationFrame(render);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="LittleEnvironment documentation and interactive demos.">
+    <title>LittleEnvironment</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <header>
+      <nav class="nav" aria-label="Primary navigation">
+        <a class="brand" href="index.html">LittleEnvironment</a>
+        <div class="nav-links">
+          <a href="api/index.html">API</a>
+          <a href="#demos">Demos</a>
+          <a href="#architecture">Architecture</a>
+        </div>
+      </nav>
+    </header>
+    <main>
+      <section class="hero">
+        <p class="eyebrow">Deterministic game simulation</p>
+        <h1>One environmental model for atmosphere, survival, and combat.</h1>
+        <p class="lede">LittleEnvironment is a dependency-free ESM toolkit for connecting celestial time, weather, lighting, physiology, attributes, status effects, progression, and saves. Its simulation runs without a browser or a renderer.</p>
+      </section>
+
+      <section id="demos">
+        <h2>Interactive demos</h2>
+        <div class="grid">
+          <article class="card"><h3>Day and night</h3><p>Continuous celestial time, ambient colour, and a torch mask.</p><a href="demos/daynight-demo.html">Open day/night demo</a></article>
+          <article class="card"><h3>Weather</h3><p>Climate transitions and camera-bounded rain, snow, ash, and fog.</p><a href="demos/weather-demo.html">Open weather demo</a></article>
+          <article class="card"><h3>Survival</h3><p>Heat exchange, insulation, fire warmth, and vital pools.</p><a href="demos/survival-demo.html">Open survival demo</a></article>
+          <article class="card"><h3>Combat</h3><p>Armour mitigation, shields, critical hits, and frostbite ticks.</p><a href="demos/combat-demo.html">Open combat demo</a></article>
+        </div>
+      </section>
+
+      <section id="architecture">
+        <h2>Architecture</h2>
+        <div class="grid">
+          <article class="card"><h3>Time and climate</h3><p>Continuous time is normalised to <code>[0, 1)</code>. Calendar changes occur only on day rollover, while weather transitions interpolate a compact climate matrix.</p></article>
+          <article class="card"><h3>Headless first</h3><p>Core modules in <code>src/</code> contain no DOM, Canvas, or WebGL assumptions. Renderer adapters consume plain light frames and particle data.</p></article>
+          <article class="card"><h3>Physiology</h3><p>Core temperature evolves smoothly with environmental delta, thermal resistance, and a configurable exchange rate. Hunger, thirst, stamina, and oxygen update at sub-second precision.</p></article>
+          <article class="card"><h3>Combat and effects</h3><p>Attributes cache their effective values until invalidated. Effects process all elapsed tick intervals, retaining the fractional remainder.</p></article>
+        </div>
+        <h3>Thermodynamic heat balance</h3>
+        <div class="formula">dTbody / dt = (Tenvironment − Tbody) / (Iinsulation + Kthermal) × Rexchange</div>
+        <h3>Layered attributes</h3>
+        <div class="formula">clamp(((base + Σflat) × (1 + Σadditive)) × Π(1 + multiplicative), min, max)</div>
+      </section>
+
+      <section>
+        <h2>Local development</h2>
+        <pre>npm test
+npm run build
+python3 -m http.server 8000</pre>
+        <p>Open this documentation from the local server rather than directly from the filesystem, so the browser can load the generated ESM bundle.</p>
+      </section>
+    </main>
+    <footer>LittleEnvironment · Dependency-free ESM · British English documentation</footer>
+  </body>
+</html>

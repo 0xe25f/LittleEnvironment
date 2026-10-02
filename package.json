@@ -1,0 +1,26 @@
+{
+  "name": "littleenvironment",
+  "version": "1.0.0",
+  "description": "A deterministic, headless-first environmental simulation toolkit for 2D games.",
+  "type": "module",
+  "exports": "./src/index.js",
+  "files": [
+    "src",
+    "release",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node tools/build.js",
+    "test": "node --test tests/*.test.js",
+    "check": "npm run test && npm run build"
+  },
+  "keywords": [
+    "game",
+    "environment",
+    "weather",
+    "survival",
+    "lighting"
+  ],
+  "license": "MIT"
+}

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LittleEnvironment API</title>
+    <link rel="stylesheet" href="../style.css">
+  </head>
+  <body>
+    <header>
+      <nav class="nav" aria-label="Primary navigation">
+        <a class="brand" href="../index.html">LittleEnvironment</a>
+        <div class="nav-links"><a href="../index.html">Overview</a><a href="../demos/daynight-demo.html">Demos</a></div>
+      </nav>
+    </header>
+    <main>
+      <p class="eyebrow">Public API</p>
+      <h1>Headless systems, optional adapters.</h1>
+      <p class="lede">Import every public type from <code>src/index.js</code> during development or from <code>release/littleenvironment.min.js</code> in a browser.</p>
+      <table>
+        <thead><tr><th>Area</th><th>Exports</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td>Events</td><td><code>EnvironmentEventBus</code>, <code>EnvironmentEvents</code></td><td>Stable listener registration and canonical lifecycle names.</td></tr>
+          <tr><td>Time</td><td><code>CalendarEngine</code>, <code>CelestialClock</code></td><td>Continuous normalised time, 24-hour conversion, solar and lunar vectors, seasons, years, and persistence.</td></tr>
+          <tr><td>Lighting</td><td><code>AmbientColorGradient</code>, <code>LightSource</code>, <code>LightingCompositor</code></td><td>Cyclic palette evaluation, deterministic harmonic flicker, viewport culling, and opt-in Canvas compositing.</td></tr>
+          <tr><td>Weather</td><td><code>ClimateMatrix</code>, <code>PrecipitationParticle</code>, <code>WeatherSystem</code></td><td>Biome-weighted weather selection, interpolated climate values, and particles recycled within active bounds.</td></tr>
+          <tr><td>Survival</td><td><code>HeatSource</code>, <code>ThermodynamicModel</code>, <code>SurvivalVitalManager</code></td><td>Radiant heat, conduction, vital depletion, stamina recovery, submersion, and threshold conditions.</td></tr>
+          <tr><td>Combat</td><td><code>ModifierType</code>, <code>StatModifier</code>, <code>Attribute</code>, <code>DamagePayload</code>, <code>CombatResolver</code></td><td>Dirty-cached modifier values, criticals, armour or elemental mitigation, shields, true damage, and receipts.</td></tr>
+          <tr><td>Effects</td><td><code>StackPolicy</code>, <code>StatusEffect</code>, <code>StatusEffectManager</code></td><td>Refresh, intensity, duration, and independent effects with drift-free ticks and targeted dispels.</td></tr>
+          <tr><td>Progression</td><td><code>ExperienceCurve</code>, <code>CharacterProgression</code></td><td>Exponential or polynomial requirements, level ceilings, overflow rollover, stat growth, and perk points.</td></tr>
+          <tr><td>Persistence</td><td><code>SchemaMigrator</code>, <code>EnvironmentSerialiser</code></td><td>Versioned compact JSON and contiguous forward migrations.</td></tr>
+        </tbody>
+      </table>
+      <h2>Typical integration</h2>
+      <pre>import { CelestialClock, WeatherSystem } from './release/littleenvironment.min.js';
+
+const clock = new CelestialClock({ dayDurationSeconds: 900 });
+const weather = new WeatherSystem();
+
+export function update(deltaSeconds, cameraBounds) {
+  clock.update(deltaSeconds);
+  return weather.update(deltaSeconds, cameraBounds).climate;
+}</pre>
+    </main>
+    <footer>See the source JSDoc for parameter-level details and the interactive demos for complete browser examples.</footer>
+  </body>
+</html>

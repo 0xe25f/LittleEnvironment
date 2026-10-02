@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Weather demo · LittleEnvironment</title>
+    <link rel="stylesheet" href="../style.css">
+  </head>
+  <body>
+    <header><nav class="nav"><a class="brand" href="../index.html">LittleEnvironment</a><div class="nav-links"><a href="daynight-demo.html">Day and night</a><a href="survival-demo.html">Survival</a></div></nav></header>
+    <main>
+      <p class="eyebrow">Interactive demo</p>
+      <h1>Climate matrix and weather particles</h1>
+      <p class="lede">Every particle is created and recycled within the active camera rectangle. Change weather to see climate values blend instead of snap.</p>
+      <div class="demo-layout">
+        <canvas class="demo-canvas" id="weather-canvas" width="760" height="420" aria-label="Weather particle visualisation"></canvas>
+        <aside class="panel controls">
+          <label>Weather <select id="weather"><option value="clear">Clear</option><option value="rain">Rain</option><option value="blizzard">Blizzard</option><option value="heatwave">Heatwave</option><option value="ash">Ash</option><option value="miasma">Toxic miasma</option></select></label>
+          <label>Particle budget <input id="budget" type="range" min="0" max="360" step="10" value="180"></label>
+          <label>Wind X <input id="wind" type="range" min="-350" max="350" step="5" value="40"></label>
+          <div class="metric"><span>Visibility</span><strong id="visibility">1.00</strong></div>
+          <div class="metric"><span>Temperature offset</span><strong id="temperature">0.0 °C</strong></div>
+          <div class="metric"><span>Active particles</span><strong id="particles">0</strong></div>
+          <div class="metric"><span>Transition</span><strong id="transition">100%</strong></div>
+        </aside>
+      </div>
+    </main>
+    <footer>The climate output can feed survival, combat, friction, and visibility systems.</footer>
+    <script type="module">
+      import { WeatherSystem } from '../../release/littleenvironment.min.js';
+
+      const canvas = document.querySelector('#weather-canvas');
+      const context = canvas.getContext('2d');
+      const weather = new WeatherSystem({ maxParticles: 180, randomSeed: 703 });
+      const bounds = { x: 0, y: 0, width: canvas.width, height: canvas.height };
+      const weatherInput = document.querySelector('#weather');
+      const budgetInput = document.querySelector('#budget');
+      const windInput = document.querySelector('#wind');
+      let previous = performance.now();
+
+      weatherInput.addEventListener('change', () => weather.setWeather(weatherInput.value, 1.6));
+      budgetInput.addEventListener('input', () => { weather.maxParticles = Number(budgetInput.value); });
+
+      function draw(snapshot) {
+        const climate = snapshot.climate;
+        const tint = climate.temperatureOffset < -5 ? '#29364f' : climate.temperatureOffset > 8 ? '#563729' : '#294b57';
+        context.fillStyle = tint;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.fillStyle = '#17251c';
+        context.fillRect(0, 330, canvas.width, 90);
+        if (climate.particleKind === 'fog') {
+          context.fillStyle = 'rgb(210 233 214 / 24%)';
+          for (const particle of weather.particles) context.fillRect(particle.x - 20, particle.y - 8, particle.length, 16);
+          return;
+        }
+        context.beginPath();
+        context.lineWidth = climate.particleKind === 'snow' ? 2.5 : 1.3;
+        context.strokeStyle = climate.particleKind === 'snow' ? 'rgb(255 255 255 / 85%)' : climate.particleKind === 'ash' ? 'rgb(220 194 151 / 65%)' : 'rgb(190 219 255 / 62%)';
+        for (const particle of weather.particles) {
+          context.moveTo(particle.x, particle.y);
+          context.lineTo(particle.x - climate.wind.x * 0.025, particle.y - Math.max(2, climate.wind.y * 0.025));
+        }
+        context.stroke();
+      }
+
+      function render(now) {
+        const frameTime = Number.isFinite(now) ? now : performance.now();
+        const delta = Math.min((frameTime - previous) / 1000, 0.08);
+        previous = frameTime;
+        const snapshot = weather.update(delta, bounds);
+        weather.climate.wind.x = Number(windInput.value);
+        draw(snapshot);
+        document.querySelector('#visibility').textContent = snapshot.climate.visibility.toFixed(2);
+        document.querySelector('#temperature').textContent = `${snapshot.climate.temperatureOffset.toFixed(1)} °C`;
+        document.querySelector('#particles').textContent = snapshot.particleCount;
+        document.querySelector('#transition').textContent = `${Math.round(snapshot.transitionProgress * 100)}%`;
+        requestAnimationFrame(render);
+      }
+
+      requestAnimationFrame(render);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Survival demo · LittleEnvironment</title>
+    <link rel="stylesheet" href="../style.css">
+  </head>
+  <body>
+    <header><nav class="nav"><a class="brand" href="../index.html">LittleEnvironment</a><div class="nav-links"><a href="weather-demo.html">Weather</a><a href="combat-demo.html">Combat</a></div></nav></header>
+    <main>
+      <p class="eyebrow">Interactive demo</p>
+      <h1>Thermodynamic survival</h1>
+      <p class="lede">The body temperature line moves smoothly towards the effective environment. Insulation changes thermal resistance; the fire contributes radial heat; submersion drains oxygen.</p>
+      <div class="demo-layout">
+        <section class="panel">
+          <h2>Vital pools</h2>
+          <div class="metric"><span>Core temperature</span><strong id="body-temperature">37.0 °C</strong></div>
+          <div class="bar"><span id="temperature-bar"></span></div>
+          <div class="metric"><span>Hunger</span><strong id="hunger">100.0</strong></div>
+          <div class="bar"><span id="hunger-bar"></span></div>
+          <div class="metric"><span>Thirst</span><strong id="thirst">100.0</strong></div>
+          <div class="bar"><span id="thirst-bar"></span></div>
+          <div class="metric"><span>Stamina</span><strong id="stamina">100.0</strong></div>
+          <div class="bar"><span id="stamina-bar"></span></div>
+          <div class="metric"><span>Oxygen</span><strong id="oxygen">100.0</strong></div>
+          <div class="bar"><span id="oxygen-bar"></span></div>
+          <h3>Active conditions</h3>
+          <pre class="log" id="conditions">None</pre>
+        </section>
+        <aside class="panel controls">
+          <label>Ambient temperature <input id="ambient" type="range" min="-30" max="45" step="1" value="-10"></label>
+          <label>Insulation <input id="insulation" type="range" min="0" max="25" step="1" value="5"></label>
+          <label>Campfire output <input id="fire" type="range" min="0" max="55" step="1" value="0"></label>
+          <label><span>Rain wetness penalty</span><input id="rain" type="checkbox"></label>
+          <label><span>Submerged</span><input id="submerged" type="checkbox"></label>
+          <label><span>Sprinting</span><input id="sprinting" type="checkbox"></label>
+          <button id="pause" type="button">Pause</button>
+          <button id="reset" type="button">Reset vitals</button>
+          <div class="metric"><span>Effective environment</span><strong id="effective">−10.0 °C</strong></div>
+        </aside>
+      </div>
+    </main>
+    <footer>Body heat is integrated by the thermal balance formula every animation frame.</footer>
+    <script type="module">
+      import { Attribute, HeatSource, SurvivalVitalManager, ThermodynamicModel } from '../../release/littleenvironment.min.js';
+
+      const attributes = new Map([['insulation', new Attribute({ name: 'insulation', base: 5, min: 0 })]]);
+      const conditionLog = [];
+      const character = {
+        x: 0,
+        y: 0,
+        getAttribute: (name) => attributes.get(name),
+        applyStatusEffect: (id) => conditionLog.push(`+ ${id}`),
+        removeStatusEffect: (id) => conditionLog.push(`− ${id}`),
+        takeDamage: () => conditionLog.push('Drowning damage applied'),
+      };
+      const model = new ThermodynamicModel({ thermalConstant: 5, exchangeRate: 0.75 });
+      let vitals = new SurvivalVitalManager({ targetCharacter: character, thermodynamicModel: model });
+      const controls = Object.fromEntries(['ambient', 'insulation', 'fire', 'rain', 'submerged', 'sprinting'].map((id) => [id, document.querySelector(`#${id}`)]));
+      let paused = false;
+      let previous = performance.now();
+
+      document.querySelector('#pause').addEventListener('click', (event) => {
+        paused = !paused;
+        event.currentTarget.textContent = paused ? 'Resume' : 'Pause';
+      });
+      document.querySelector('#reset').addEventListener('click', () => {
+        vitals = new SurvivalVitalManager({ targetCharacter: character, thermodynamicModel: model });
+        conditionLog.length = 0;
+      });
+
+      function showPool(id, value) {
+        document.querySelector(`#${id}`).textContent = value.toFixed(1);
+        document.querySelector(`#${id}-bar`).style.width = `${value}%`;
+      }
+
+      function render(now) {
+        const frameTime = Number.isFinite(now) ? now : performance.now();
+        const delta = Math.min((frameTime - previous) / 1000, 0.08);
+        previous = frameTime;
+        const ambient = Number(controls.ambient.value);
+        const fire = Number(controls.fire.value);
+        attributes.get('insulation').setBase(Number(controls.insulation.value));
+        vitals.setSubmerged(controls.submerged.checked);
+        vitals.setSprinting(controls.sprinting.checked);
+        if (!paused) {
+          vitals.update(delta, {
+            ambientTemperature: ambient,
+            isRaining: controls.rain.checked,
+            isSprinting: controls.sprinting.checked,
+            resting: !controls.sprinting.checked,
+          }, [new HeatSource({ x: 0, y: 0, radius: 100, heatOutput: fire })]);
+        }
+        const wetness = controls.rain.checked ? -5 : 0;
+        document.querySelector('#effective').textContent = `${(ambient + fire + wetness).toFixed(1)} °C`;
+        document.querySelector('#body-temperature').textContent = `${vitals.bodyTemperature.toFixed(2)} °C`;
+        document.querySelector('#temperature-bar').style.width = `${Math.max(0, Math.min(100, (vitals.bodyTemperature - 25) / 17 * 100))}%`;
+        showPool('hunger', vitals.hunger);
+        showPool('thirst', vitals.thirst);
+        showPool('stamina', vitals.stamina);
+        showPool('oxygen', vitals.oxygen);
+        const conditions = [...vitals.conditions];
+        document.querySelector('#conditions').textContent = conditions.length ? conditions.join('\n') : 'None';
+        requestAnimationFrame(render);
+      }
+
+      requestAnimationFrame(render);
+    </script>
+  </body>
+</html>
