@@ -36,7 +36,7 @@
     </main>
     <footer>Status effect modifiers and tick state are removed cleanly at expiration or dispel.</footer>
     <script type="module">
-      import { Attribute, CombatResolver, ModifierType, StackPolicy, StatusEffectManager } from '../../release/littleenvironment.min.js';
+      import { Attribute, CombatResolver, ModifierType, StackPolicy, StatusEffectManager } from '../lib/littleenvironment.min.js';
 
       const attackerAttributes = new Map([
         ['critChance', new Attribute({ name: 'critChance', base: 0.3, min: 0, max: 1 })],
